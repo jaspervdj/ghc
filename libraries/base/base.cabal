@@ -341,9 +341,9 @@ Library
             GHC.Event.EPoll
             GHC.Event.IntTable
             GHC.Event.Internal
+            GHC.Event.IntPSQ
             GHC.Event.KQueue
             GHC.Event.Manager
-            GHC.Event.PSQ
             GHC.Event.Poll
             GHC.Event.Thread
             GHC.Event.TimerManager

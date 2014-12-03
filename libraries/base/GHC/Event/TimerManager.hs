@@ -50,11 +50,11 @@ import GHC.Show (Show(..))
 import GHC.Event.Clock (getMonotonicTime)
 import GHC.Event.Control
 import GHC.Event.Internal (Backend, Event, evtRead, Timeout(..))
-import GHC.Event.Unique (Unique, UniqueSource, newSource, newUnique)
+import GHC.Event.Unique (Unique(..), UniqueSource, newSource, newUnique)
 import System.Posix.Types (Fd)
 
 import qualified GHC.Event.Internal as I
-import qualified GHC.Event.PSQ as Q
+import qualified GHC.Event.IntPSQ as Q
 
 #if defined(HAVE_POLL)
 import qualified GHC.Event.Poll   as Poll
@@ -79,7 +79,7 @@ data State = Created
              deriving (Eq, Show)
 
 -- | A priority search queue, with timeouts as priorities.
-type TimeoutQueue = Q.PSQ TimeoutCallback
+type TimeoutQueue = Q.IntPSQ Double TimeoutCallback
 
 -- | An edit to apply to a 'TimeoutQueue'.
 type TimeoutEdit = TimeoutQueue -> TimeoutQueue
@@ -190,13 +190,13 @@ step mgr = do
       (expired, timeout) <- atomicModifyIORef' (emTimeouts mgr) $ \tq ->
            let (expired, tq') = Q.atMost now tq
                timeout = case Q.minView tq' of
-                 Nothing             -> Forever
-                 Just (Q.E _ t _, _) ->
+                 Nothing           -> Forever
+                 Just (_, t, _, _) ->
                      -- This value will always be positive since the call
                      -- to 'atMost' above removed any timeouts <= 'now'
                      let t' = t - now in t' `seq` Timeout t'
            in (tq', (expired, timeout))
-      sequence_ $ map Q.value expired
+      sequence_ [val | (_, _, val) <- expired]
       return timeout
 
 -- | Wake up the event manager.
@@ -218,14 +218,14 @@ registerTimeout mgr us cb = do
       now <- getMonotonicTime
       let expTime = fromIntegral us / 1000000.0 + now
 
-      editTimeouts mgr (Q.insert key expTime cb)
+      editTimeouts mgr (Q.insert (asInt64 key) expTime cb)
       wakeManager mgr
   return $ TK key
 
 -- | Unregister an active timeout.
 unregisterTimeout :: TimerManager -> TimeoutKey -> IO ()
 unregisterTimeout mgr (TK key) = do
-  editTimeouts mgr (Q.delete key)
+  editTimeouts mgr (Q.delete (asInt64 key))
   wakeManager mgr
 
 -- | Update an active timeout to fire in the given number of
@@ -235,7 +235,7 @@ updateTimeout mgr (TK key) us = do
   now <- getMonotonicTime
   let expTime = fromIntegral us / 1000000.0 + now
 
-  editTimeouts mgr (Q.adjust (const expTime) key)
+  editTimeouts mgr (Q.adjust (const expTime) (asInt64 key))
   wakeManager mgr
 
 editTimeouts :: TimerManager -> TimeoutEdit -> IO ()

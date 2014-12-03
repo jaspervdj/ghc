@@ -1,7 +1,7 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE BangPatterns, NoImplicitPrelude #-}
 
--- Copyright (c) 2008, Ralf Hinze
+-- Copyright (c) 2014, Jasper Van der Jeugt and Simon Meier
 -- All rights reserved.
 --
 -- Redistribution and use in source and binary forms, with or without
@@ -36,19 +36,16 @@
 
 -- | A /priority search queue/ (henceforth /queue/) efficiently
 -- supports the operations of both a search tree and a priority queue.
--- An 'Elem'ent is a product of a key, a priority, and a
--- value. Elements can be inserted, deleted, modified and queried in
--- logarithmic time, and the element with the least priority can be
--- retrieved in constant time.  A queue can be built from a list of
--- elements, sorted by keys, in linear time.
 --
--- This implementation is due to Ralf Hinze with some modifications by
--- Scott Dillard and Johan Tibell.
+-- Many operatios have a worst-case complexity of O(min(n,W)). This means that
+-- the operation can become linear in the number of elements with a maximum of
+-- W, the number of bits in the key type (here Int64).
 --
--- * Hinze, R., /A Simple Implementation Technique for Priority Search
--- Queues/, ICFP 2001, pp. 110-121
---
--- <http://citeseer.ist.psu.edu/hinze01simple.html>
+-- However, like an 'IntMap', it performs very well in practice.
+
+-- This implementation was extracted from the 'pqueues' package by Jasper Van
+-- der Jeugt, Simon Meier, and others.
+-- <https://hackage.haskell.org/package/psqueues>.
 module GHC.Event.PSQ
     (
     -- * Binding Type
